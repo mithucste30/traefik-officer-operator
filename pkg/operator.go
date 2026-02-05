@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -12,7 +11,7 @@ import (
 
 // OperatorModeConfig manages configurations from CRD when running in operator mode
 type OperatorModeConfig struct {
-	configManager *ConfigManager
+	configManager ConfigManager
 	mu            sync.RWMutex
 	enabled       bool
 }
