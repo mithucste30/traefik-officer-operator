@@ -13,6 +13,9 @@ RUN go mod download
 COPY shared/ ./shared/
 COPY pkg/ ./pkg/
 
+# Copy cmd directory
+COPY cmd/ ./cmd/
+
 # Build standalone binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o /traefik-officer ./cmd/traefik-officer
 

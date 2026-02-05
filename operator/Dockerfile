@@ -1,5 +1,6 @@
 # Dockerfile for traefik-officer-operator
 # Builds the operator binary with embedded log processing
+# This Dockerfile should be built from the repository root
 
 FROM golang:1.24.1-alpine AS builder
 
@@ -8,22 +9,18 @@ WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache git make gcc musl-dev
 
-# Copy root go.mod for shared code
+# Copy root module files first
 COPY go.mod go.sum ./
-RUN go mod download
 
-# Copy shared code and pkg (needed for log processing)
+# Copy shared code and pkg (needed for log processing and for replace directive to work)
 COPY shared/ ./shared/
 COPY pkg/ ./pkg/
 
-# Copy operator go.mod
-COPY operator/go.mod operator/go.sum ./
-RUN go mod download
+# Copy operator module
+COPY operator/ ./operator/
 
-# Copy operator source
-COPY operator/ ./
-
-# Build operator binary
+# Build operator binary from the operator directory
+WORKDIR /app/operator
 RUN CGO_ENABLED=0 GOOS=linux go build -o /traefik-officer-operator .
 
 # Final stage
