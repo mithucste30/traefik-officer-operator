@@ -15,7 +15,7 @@ builds:
       - amd64
       - arm64
     binary: traefik-officer
-    main: ./pkg/main.go
+    dir: ./pkg
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     flags:
@@ -31,7 +31,7 @@ builds:
       - amd64
       - arm64
     binary: traefik-officer-operator
-    main: ./operator/main.go
+    dir: ./operator
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     flags:

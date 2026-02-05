@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	logger "github.com/sirupsen/logrus"
 )
@@ -244,4 +245,17 @@ func GetURLPatternsFromConfig(runtimeConfig *RuntimeConfig) []URLPattern {
 	}
 
 	return runtimeConfig.URLPatterns
+}
+
+// MainOperator starts the log processor in operator mode
+// This function should be called when running as a Kubernetes operator
+func MainOperator(cm ConfigManager) {
+	logger.Info("Starting Traefik Officer in operator mode")
+
+	// Start top paths updater
+	startTopPathsUpdater(30 * time.Second)
+
+	// The actual log processing will be initiated from the main entry point
+	// This function is meant to be called as a goroutine from the operator's main()
+	logger.Info("Operator mode initialized - waiting for log source configuration")
 }
