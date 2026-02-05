@@ -1,46 +1,45 @@
-# Multi-stage Dockerfile for Traefik Officer Operator
-FROM golang:1.24-alpine AS builder
+# Dockerfile for traefik-officer-operator
+# Builds the operator binary with embedded log processing
+
+FROM golang:1.24.1-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install build dependencies
 RUN apk add --no-cache git make gcc musl-dev
 
-# Copy go mod files
+# Copy root go.mod for shared code
 COPY go.mod go.sum ./
-COPY operator/go.mod operator/go.sum ./operator/ 2>/dev/null || true
-
-# Download dependencies
 RUN go mod download
 
-# Copy source code
+# Copy shared code and pkg (needed for log processing)
+COPY shared/ ./shared/
 COPY pkg/ ./pkg/
-COPY operator/ ./operator/
+
+# Copy operator go.mod
+COPY operator/go.mod operator/go.sum ./
+RUN go mod download
+
+# Copy operator source
+COPY operator/ ./
 
 # Build operator binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/traefik-officer-operator ./operator/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /traefik-officer-operator .
 
 # Final stage
 FROM alpine:3.19
 
-# Install ca-certificates for HTTPS
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata wget
 
-# Copy binary from builder
-COPY --from=builder /usr/bin/traefik-officer-operator /usr/local/bin/traefik-officer-operator
+COPY --from=builder /traefik-officer-operator /usr/local/bin/traefik-officer-operator
 
-# Create non-root user
-RUN adduser -D appuser && \
-    chown -R appuser:appuser /home/appuser
-
+RUN adduser -D appuser
 USER appuser
 
 WORKDIR /home/appuser
 
-# Expose ports
-EXPOSE 8080 8081 9443
+EXPOSE 8080 8081
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8081/healthz || exit 1
 

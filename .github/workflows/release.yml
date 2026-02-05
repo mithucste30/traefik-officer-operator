@@ -105,20 +105,19 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Operator image disabled until controller is complete
-      # - name: Build and push operator image
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: .
-      #     file: ./operator/Dockerfile
-      #     platforms: ${{ matrix.platform }}
-      #     push: true
-      #     tags: ${{ steps.meta-operator.outputs.tags }}
-      #     labels: ${{ steps.meta-operator.outputs.labels }}
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
-      #     provenance: true
-      #     sbom: true
+      - name: Build and push operator image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./operator/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta-operator.outputs.tags }}
+          labels: ${{ steps.meta-operator.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
 
   helm:
     name: Publish Helm Chart

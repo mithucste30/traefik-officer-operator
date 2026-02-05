@@ -3,7 +3,7 @@
 replicaCount: 1
 
 image:
-  repository: 0xvox/traefik-officer
+  repository: ghcr.io/mithucste30/traefik-officer-operator
   pullPolicy: IfNotPresent
   tag: "latest"
 

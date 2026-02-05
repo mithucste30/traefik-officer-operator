@@ -1,9 +1,10 @@
-module github.com/0xvox/traefik-officer/operator
+module github.com/mithucste30/traefik-officer-operator/operator
 
 go 1.24.1
 
 require (
-	github.com/0xvox/traefik-officer v0.0.0
+	github.com/go-logr/logr v1.4.2
+	github.com/mithucste30/traefik-officer-operator v0.0.0-00010101000000-000000000000
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.35.1
 	github.com/sirupsen/logrus v1.9.3
@@ -21,7 +22,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
@@ -74,4 +74,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace github.com/0xvox/traefik-officer => ../
+replace github.com/mithucste30/traefik-officer-operator => ../

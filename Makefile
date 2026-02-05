@@ -28,13 +28,13 @@ help: ## Show this help message
 ## Development
 build: ## Build binaries
 	@echo "Building standalone binary..."
-	cd pkg && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../bin/traefik-officer .
+	cd cmd/traefik-officer && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../../bin/traefik-officer .
 	@echo "Building operator binary..."
 	cd operator && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../bin/traefik-officer-operator .
 	@echo "Binaries built successfully!"
 
 build-standalone: ## Build standalone binary only
-	cd pkg && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../bin/traefik-officer .
+	cd cmd/traefik-officer && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../../bin/traefik-officer .
 
 build-operator: ## Build operator binary only
 	cd operator && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../bin/traefik-officer-operator .
@@ -119,12 +119,13 @@ run-operator: ## Run operator locally (requires kubectl config)
 		../bin/traefik-officer-operator --leader-elect=false
 
 run-standalone: ## Run standalone mode
-	cd pkg && $(GOBUILD) -o ../bin/traefik-officer . && \
-		../bin/traefik-officer --log-file=test/access.log --json-logs
+	cd cmd/traefik-officer && $(GOBUILD) -o ../../bin/traefik-officer . && \
+		../../bin/traefik-officer --log-file=test/access.log --json-logs
 
 deps: ## Download dependencies
 	$(GOMOD) download
 	cd operator && $(GOMOD) download
+	cd cmd/traefik-officer && $(GOMOD) download
 
 ## CI/CD
 ci: lint test ## Run CI checks locally

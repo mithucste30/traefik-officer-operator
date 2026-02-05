@@ -1,4 +1,4 @@
-package main
+package logprocessing
 
 import (
 	_ "flag"
@@ -7,9 +7,12 @@ import (
 	_ "time"
 )
 
+// EstBytesPerLine Estimated number of bytes per line - for log rotation
+const EstBytesPerLine = 150
+
 type parser func(line string) (traefikLogConfig, error)
 
-func processLogs(logSource LogSource, config TraefikOfficerConfig, useK8sPtr *bool, logFileConfig *LogFileConfig, jsonLogsPtr *bool) {
+func ProcessLogs(logSource LogSource, config TraefikOfficerConfig, useK8sPtr *bool, logFileConfig *LogFileConfig, jsonLogsPtr *bool) {
 	// Only set up log rotation for file mode
 	var linesToRotate int
 	if !*useK8sPtr {
@@ -67,15 +70,37 @@ func processLogs(logSource LogSource, config TraefikOfficerConfig, useK8sPtr *bo
 			continue
 		}
 
-		// Check if this service should be ignored
-		if !startsWith(config.AllowedServices, d.RouterName) {
-			logger.Debugf("Ignoring service: %s, not in allowed list %s", d.RouterName, config.AllowedServices)
-			continue
+		// Operator mode: Check if we should process this router based on CRD configs
+		if IsOperatorMode() {
+			shouldProcess, runtimeConfig := ShouldProcessRouter(d.RouterName)
+			if !shouldProcess {
+				logger.Debugf("Skipping router (not in CRD configs): %s", d.RouterName)
+				continue
+			}
+
+			// Apply operator configuration filters
+			if !ApplyOperatorConfigToLog(&d, runtimeConfig) {
+				continue
+			}
+
+			// Apply path merging if configured
+			if runtimeConfig != nil {
+				d.RequestPath = MergePathsWithOperatorConfig(d.RequestPath, runtimeConfig)
+				// Get URL patterns from CRD config
+				urlPatterns := GetURLPatternsFromConfig(runtimeConfig)
+				updateMetrics(&d, urlPatterns)
+			} else {
+				updateMetrics(&d, config.URLPatterns)
+			}
+		} else {
+			// Legacy mode: Check if this service should be ignored
+			if !startsWith(config.AllowedServices, d.RouterName) {
+				logger.Debugf("Ignoring service: %s, not in allowed list %s", d.RouterName, config.AllowedServices)
+				continue
+			}
+			logger.Debugf("Found Matching service: %s, in allowed list", d.RouterName)
+			updateMetrics(&d, config.URLPatterns)
 		}
-
-		logger.Debugf("Found Matching service: %s, in allowed list", d.RouterName)
-
-		updateMetrics(&d, config.URLPatterns)
 
 		// Only JSON logs have Overhead metrics
 		if *jsonLogsPtr {
@@ -85,7 +110,7 @@ func processLogs(logSource LogSource, config TraefikOfficerConfig, useK8sPtr *bo
 }
 
 // createLogSource creates the appropriate log source based on configuration
-func createLogSource(useK8s bool, logFileConfig *LogFileConfig, k8sConfig *K8SConfig) (LogSource, error) {
+func CreateLogSource(useK8s bool, logFileConfig *LogFileConfig, k8sConfig *K8SConfig) (LogSource, error) {
 	if useK8s {
 		logger.Info("Creating Kubernetes log source with label selector:", k8sConfig.LabelSelector)
 

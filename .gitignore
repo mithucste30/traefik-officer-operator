@@ -5,3 +5,4 @@ accessLog.txt
 .debug
 results.csv
 tmp/
+bin/

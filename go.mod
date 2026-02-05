@@ -1,4 +1,4 @@
-module github.com/0xvox/traefik-officer
+module github.com/mithucste30/traefik-officer-operator
 
 go 1.24.1
 

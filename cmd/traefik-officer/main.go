@@ -5,6 +5,8 @@ import (
 	logger "github.com/sirupsen/logrus"
 	"os"
 	"time"
+
+	logprocessing "github.com/mithucste30/traefik-officer-operator/pkg"
 )
 
 // EstBytesPerLine Estimated number of bytes per line - for log rotation
@@ -16,8 +18,8 @@ func main() {
 	servePort := flag.String("listen-port", "8080", "Which port to expose metrics on")
 	jsonLogs := flag.Bool("json-logs", false, "If true, parse JSON logs instead of accessLog format")
 	useK8s := flag.Bool("use-k8s", false, "Read logs from Kubernetes pods instead of file")
-	logFileConfig := AddFileFlags(flag.CommandLine)
-	k8sConfig := AddKubernetesFlags(flag.CommandLine)
+	logFileConfig := logprocessing.AddFileFlags(flag.CommandLine)
+	k8sConfig := logprocessing.AddKubernetesFlags(flag.CommandLine)
 
 	flag.Parse()
 
@@ -26,7 +28,7 @@ func main() {
 	}
 
 	// Load configuration
-	config, err := LoadConfig(*configLocation)
+	config, err := logprocessing.LoadConfig(*configLocation)
 	if err != nil {
 		logger.Warnf("Failed to load configuration: %v. Using default configuration.", err)
 	}
@@ -46,35 +48,35 @@ func main() {
 	logger.Info("JSON Logs:", *jsonLogs)
 
 	// Start background task to update top paths
-	startTopPathsUpdater(30 * time.Second)
+	logprocessing.StartTopPathsUpdater(30 * time.Second)
 	//startMetricsCleaner(60 * time.Minute)
 
 	// Start metrics server
 	go func() {
-		if err := serveProm(*servePort); err != nil {
+		if err := logprocessing.ServeProm(*servePort); err != nil {
 			logger.Errorf("Metrics server error: %v", err)
 		}
 	}()
 
 	// Create log source
-	logSource, err := createLogSource(*useK8s, logFileConfig, k8sConfig)
+	logSource, err := logprocessing.CreateLogSource(*useK8s, logFileConfig, k8sConfig)
 	if err != nil {
-		UpdateHealthStatus("log_source", "error", err)
+		logprocessing.UpdateHealthStatus("log_source", "error", err)
 		logger.Error("Failed to create log source:", err)
 		os.Exit(1)
 	}
 	defer func() {
 		if err := logSource.Close(); err != nil {
-			UpdateHealthStatus("log_source", "close_error", err)
+			logprocessing.UpdateHealthStatus("log_source", "close_error", err)
 			logger.Errorf("Error closing log source: %v", err)
 		} else {
-			UpdateHealthStatus("log_source", "closed", nil)
+			logprocessing.UpdateHealthStatus("log_source", "closed", nil)
 		}
 	}()
 
-	UpdateHealthStatus("log_processor", "running", nil)
+	logprocessing.UpdateHealthStatus("log_processor", "running", nil)
 
 	// Start log processing
 	logger.Info("Starting log processing")
-	processLogs(logSource, config, useK8s, logFileConfig, jsonLogs)
+	logprocessing.ProcessLogs(logSource, config, useK8s, logFileConfig, jsonLogs)
 }

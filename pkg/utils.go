@@ -1,4 +1,4 @@
-package main
+package logprocessing
 
 import (
 	"bytes"
@@ -436,7 +436,7 @@ func countTotalTopPaths(tps map[string]map[string]bool) int {
 	return count
 }
 
-func startTopPathsUpdater(interval time.Duration) {
+func StartTopPathsUpdater(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	go func() {

@@ -1,37 +1,31 @@
-# Use the same Go version for both stages to avoid compatibility issues
+# Multi-stage Dockerfile for traefik-officer
+# Builds both standalone and operator binaries
+
 FROM golang:1.24.1-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency files first for better layer caching
+# Copy dependency files
 COPY go.mod go.sum ./
-
-# Install dependencies and build tools
-RUN apk add --no-cache git make gcc musl-dev
-
-# Download dependencies (go mod download is more efficient than go install for dependencies)
 RUN go mod download
 
-# Copy the rest of the application
+# Copy shared code and pkg
+COPY shared/ ./shared/
 COPY pkg/ ./pkg/
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /traefikofficer ./pkg
+# Build standalone binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o /traefik-officer ./cmd/traefik-officer
 
-# Final stage - use scratch or alpine for smallest image
-FROM alpine:3.19
+# Final stage for standalone binary
+FROM alpine:3.19 AS standalone
 
-# Install CA certificates for HTTPS requests
 RUN apk add --no-cache ca-certificates
 
-# Copy the binary from builder
-COPY --from=builder /traefikofficer /app/traefikofficer
+COPY --from=builder /traefik-officer /app/traefik-officer
 
-# Set working directory
 WORKDIR /app
 
-# Run as non-root user
 RUN adduser -D appuser && chown -R appuser /app
 USER appuser
 
-ENTRYPOINT [ "/app/traefikofficer" ]
+ENTRYPOINT ["/app/traefik-officer"]

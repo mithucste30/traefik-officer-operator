@@ -1,41 +1,21 @@
-package main
+package logprocessing
 
 import (
 	"fmt"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	logger "github.com/sirupsen/logrus"
+
+	"github.com/mithucste30/traefik-officer-operator/shared"
 )
 
 // OperatorModeConfig manages configurations from CRD when running in operator mode
 type OperatorModeConfig struct {
-	configManager ConfigManager
+	configManager shared.ConfigManager
 	mu            sync.RWMutex
 	enabled       bool
-}
-
-// ConfigManager interface for getting runtime configurations
-type ConfigManager interface {
-	GetConfig(key string) (*RuntimeConfig, bool)
-	GetAllConfigs() []*RuntimeConfig
-}
-
-// RuntimeConfig represents the configuration for a specific UrlPerformance
-type RuntimeConfig struct {
-	Key            string
-	Namespace      string
-	TargetName     string
-	TargetKind     string
-	WhitelistRegex []*regexp.Regexp
-	IgnoredRegex   []*regexp.Regexp
-	MergePaths     []string
-	URLPatterns    []URLPattern
-	CollectNTop    int
-	Enabled        bool
-	lastUpdated    interface{} // time.Time
 }
 
 var operatorConfig = &OperatorModeConfig{
@@ -43,7 +23,7 @@ var operatorConfig = &OperatorModeConfig{
 }
 
 // SetOperatorMode enables operator mode and sets the config manager
-func SetOperatorMode(enabled bool, cm ConfigManager) {
+func SetOperatorMode(enabled bool, cm shared.ConfigManager) {
 	operatorConfig.mu.Lock()
 	defer operatorConfig.mu.Unlock()
 
@@ -63,7 +43,7 @@ func IsOperatorMode() bool {
 }
 
 // ShouldProcessRouter checks if a router should be processed based on CRD configs
-func ShouldProcessRouter(routerName string) (bool, *RuntimeConfig) {
+func ShouldProcessRouter(routerName string) (bool, *shared.RuntimeConfig) {
 	if !IsOperatorMode() {
 		// Not in operator mode - use legacy config file approach
 		return true, nil
@@ -182,7 +162,7 @@ func GetRouterLabels(routerName string) map[string]string {
 }
 
 // ApplyOperatorConfigToLog applies operator configuration to log processing
-func ApplyOperatorConfigToLog(entry *traefikLogConfig, runtimeConfig *RuntimeConfig) bool {
+func ApplyOperatorConfigToLog(entry *traefikLogConfig, runtimeConfig *shared.RuntimeConfig) bool {
 	if runtimeConfig == nil {
 		return true
 	}
@@ -216,7 +196,7 @@ func ApplyOperatorConfigToLog(entry *traefikLogConfig, runtimeConfig *RuntimeCon
 }
 
 // MergePathsWithOperatorConfig applies path merging based on operator config
-func MergePathsWithOperatorConfig(path string, runtimeConfig *RuntimeConfig) string {
+func MergePathsWithOperatorConfig(path string, runtimeConfig *shared.RuntimeConfig) string {
 	if runtimeConfig == nil || len(runtimeConfig.MergePaths) == 0 {
 		return path
 	}
@@ -239,21 +219,27 @@ func MergePathsWithOperatorConfig(path string, runtimeConfig *RuntimeConfig) str
 }
 
 // GetURLPatternsFromConfig returns URL patterns from runtime config
-func GetURLPatternsFromConfig(runtimeConfig *RuntimeConfig) []URLPattern {
+func GetURLPatternsFromConfig(runtimeConfig *shared.RuntimeConfig) []URLPattern {
 	if runtimeConfig == nil {
 		return nil
 	}
 
-	return runtimeConfig.URLPatterns
+	// Convert shared.URLPattern to pkg URLPattern
+	patterns := make([]URLPattern, 0, len(runtimeConfig.URLPatterns))
+	for _, p := range runtimeConfig.URLPatterns {
+		patterns = append(patterns, URLPattern{
+			Pattern:     p.Pattern.String(), // Convert *regexp.Regexp to string
+			Replacement: p.Replacement,
+			Regex:       p.Pattern,          // Keep the compiled regex
+		})
+	}
+	return patterns
 }
 
 // MainOperator starts the log processor in operator mode
 // This function should be called when running as a Kubernetes operator
-func MainOperator(cm ConfigManager) {
+func MainOperator(cm shared.ConfigManager) {
 	logger.Info("Starting Traefik Officer in operator mode")
-
-	// Start top paths updater
-	startTopPathsUpdater(30 * time.Second)
 
 	// The actual log processing will be initiated from the main entry point
 	// This function is meant to be called as a goroutine from the operator's main()

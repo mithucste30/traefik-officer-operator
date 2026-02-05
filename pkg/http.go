@@ -1,4 +1,4 @@
-package main
+package logprocessing
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-func serveProm(port string) error {
+func ServeProm(port string) error {
 	if port == "" {
 		return errors.New("port cannot be empty")
 	}

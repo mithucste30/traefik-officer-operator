@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	logger "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,78 +16,49 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	traefikofficerv1alpha1 "github.com/0xvox/traefik-officer/operator/api/v1alpha1"
+	traefikofficerv1alpha1 "github.com/mithucste30/traefik-officer-operator/operator/api/v1alpha1"
+	"github.com/mithucste30/traefik-officer-operator/shared"
 )
-
-// URLPattern represents a compiled URL pattern (shared with pkg/metrics.go)
-type URLPattern struct {
-	Pattern     *regexp.Regexp
-	Replacement string
-}
 
 // UrlPerformanceReconciler reconciles a UrlPerformance object
 type UrlPerformanceReconciler struct {
 	client.Client
-	Log      log.Log
-	Scheme   *runtime.Scheme
-	// ConfigManager is used to update the runtime configuration
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
 	ConfigManager *ConfigManager
 }
 
 // ConfigManager manages dynamic configuration from CRDs
 type ConfigManager struct {
-	// Map of configKey -> UrlPerformance config
-	configs map[string]*RuntimeConfig
+	configs map[string]*shared.RuntimeConfig
 	mu      sync.RWMutex
-}
-
-// RuntimeConfig represents the configuration for a specific UrlPerformance
-type RuntimeConfig struct {
-	// Key: namespace-ingressName or namespace-ingressRouteName
-	Key               string
-	Namespace         string
-	TargetName        string
-	TargetKind        string
-	WhitelistRegex    []*regexp.Regexp
-	IgnoredRegex      []*regexp.Regexp
-	MergePaths        []string
-	URLPatterns       []URLPattern
-	CollectNTop       int
-	Enabled           bool
-	lastUpdated       time.Time
 }
 
 // NewConfigManager creates a new ConfigManager
 func NewConfigManager() *ConfigManager {
 	return &ConfigManager{
-		configs: make(map[string]*RuntimeConfig),
+		configs: make(map[string]*shared.RuntimeConfig),
 	}
 }
 
 // UpdateConfig updates or removes a configuration
-func (cm *ConfigManager) UpdateConfig(config *RuntimeConfig) {
+func (cm *ConfigManager) UpdateConfig(config *shared.RuntimeConfig) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
 	if !config.Enabled {
-		// Remove disabled configs
 		delete(cm.configs, config.Key)
 		logger.Infof("Removed config for %s (disabled)", config.Key)
 		return
 	}
 
 	cm.configs[config.Key] = config
-	logger.Infof("Updated config for %s (whitelist: %d, ignored: %d, top: %d)",
-		config.Key,
-		len(config.WhitelistRegex),
-		len(config.IgnoredRegex),
-		config.CollectNTop)
+	logger.Infof("Updated config for %s", config.Key)
 }
 
 // GetConfig retrieves configuration for a specific key
-func (cm *ConfigManager) GetConfig(key string) (*RuntimeConfig, bool) {
+func (cm *ConfigManager) GetConfig(key string) (*shared.RuntimeConfig, bool) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
@@ -95,11 +67,11 @@ func (cm *ConfigManager) GetConfig(key string) (*RuntimeConfig, bool) {
 }
 
 // GetAllConfigs returns all active configurations
-func (cm *ConfigManager) GetAllConfigs() []*RuntimeConfig {
+func (cm *ConfigManager) GetAllConfigs() []*shared.RuntimeConfig {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 
-	configs := make([]*RuntimeConfig, 0, len(cm.configs))
+	configs := make([]*shared.RuntimeConfig, 0, len(cm.configs))
 	for _, config := range cm.configs {
 		configs = append(configs, config)
 	}
@@ -110,25 +82,20 @@ func (cm *ConfigManager) GetAllConfigs() []*RuntimeConfig {
 //+kubebuilder:rbac:groups=traefikofficer.io,resources=urlperformances/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=traefikofficer.io,resources=urlperformances/finalizers,verbs=update
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch
-//+kubebuilder:rbac:groups=traefik.io,resources=ingressroutes,verbs=get;list;watch
 
 // Reconcile is the main reconciliation loop
 func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	log.Info("Reconciling UrlPerformance", "namespace", req.Namespace, "name", req.Name)
+	reqLogger := logr.FromContextOrDiscard(ctx)
+	reqLogger.Info("Reconciling UrlPerformance", "namespace", req.Namespace, "name", req.Name)
 
 	// Fetch the UrlPerformance instance
 	instance := &traefikofficerv1alpha1.UrlPerformance{}
 	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Object not found, return. Created objects are automatically garbage collected.
-			log.Info("UrlPerformance resource not found. Ignoring since object must be deleted", "name", req.Name)
+			reqLogger.Info("UrlPerformance resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get UrlPerformance")
 		return ctrl.Result{}, err
 	}
 
@@ -159,25 +126,16 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			Name:      instance.Spec.TargetRef.Name,
 		}, ingress)
 		targetExists = (targetErr == nil)
-
-	case "IngressRoute":
-		ingressRoute := &traefikv1alpha1.IngressRoute{}
-		targetErr = r.Get(ctx, types.NamespacedName{
-			Namespace: targetNamespace,
-			Name:      instance.Spec.TargetRef.Name,
-		}, ingressRoute)
-		targetExists = (targetErr == nil)
 	}
 
 	if !targetExists {
-		log.Error(targetErr, "Target resource not found", "kind", instance.Spec.TargetRef.Kind, "namespace", targetNamespace, "name", instance.Spec.TargetRef.Name)
-		r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionTargetExists, metav1.ConditionFalse, "NotFound", "Target resource not found")
+		reqLogger.Error(targetErr, "Target resource not found")
+		r.updateCondition(ctx, instance, "TargetExists", metav1.ConditionFalse, "NotFound", "Target resource not found")
 		instance.Status.Phase = traefikofficerv1alpha1.PhaseError
 		return r.updateStatus(ctx, instance)
 	}
 
-	// Target exists - proceed with configuration
-	r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionTargetExists, metav1.ConditionTrue, "Found", "Target resource found")
+	r.updateCondition(ctx, instance, "TargetExists", metav1.ConditionTrue, "Found", "Target resource found")
 
 	// Build runtime configuration
 	configKey := fmt.Sprintf("%s-%s", targetNamespace, instance.Spec.TargetRef.Name)
@@ -187,8 +145,8 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	for _, pattern := range instance.Spec.WhitelistPathsRegex {
 		regex, err := regexp.Compile(pattern)
 		if err != nil {
-			log.Error(err, "Invalid whitelist regex pattern", "pattern", pattern)
-			r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionConfigGenerated, metav1.ConditionFalse, "InvalidRegex", fmt.Sprintf("Invalid whitelist regex: %s", pattern))
+			reqLogger.Error(err, "Invalid whitelist regex pattern")
+			r.updateCondition(ctx, instance, "ConfigGenerated", metav1.ConditionFalse, "InvalidRegex", "Invalid whitelist regex")
 			instance.Status.Phase = traefikofficerv1alpha1.PhaseError
 			return r.updateStatus(ctx, instance)
 		}
@@ -199,8 +157,8 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	for _, pattern := range instance.Spec.IgnoredPathsRegex {
 		regex, err := regexp.Compile(pattern)
 		if err != nil {
-			log.Error(err, "Invalid ignored regex pattern", "pattern", pattern)
-			r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionConfigGenerated, metav1.ConditionFalse, "InvalidRegex", fmt.Sprintf("Invalid ignored regex: %s", pattern))
+			reqLogger.Error(err, "Invalid ignored regex pattern")
+			r.updateCondition(ctx, instance, "ConfigGenerated", metav1.ConditionFalse, "InvalidRegex", "Invalid ignored regex")
 			instance.Status.Phase = traefikofficerv1alpha1.PhaseError
 			return r.updateStatus(ctx, instance)
 		}
@@ -208,21 +166,21 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Convert URL patterns
-	urlPatterns := make([]URLPattern, 0)
+	urlPatterns := make([]shared.URLPattern, 0)
 	for _, pattern := range instance.Spec.URLPatterns {
 		regex, err := regexp.Compile(pattern.Pattern)
 		if err != nil {
-			log.Error(err, "Invalid URL pattern regex", "pattern", pattern.Pattern)
+			reqLogger.Error(err, "Invalid URL pattern regex")
 			continue
 		}
-		urlPatterns = append(urlPatterns, URLPattern{
+		urlPatterns = append(urlPatterns, shared.URLPattern{
 			Pattern:     regex,
 			Replacement: pattern.Replacement,
 		})
 	}
 
 	// Create runtime config
-	runtimeConfig := &RuntimeConfig{
+	runtimeConfig := &shared.RuntimeConfig{
 		Key:            configKey,
 		Namespace:      targetNamespace,
 		TargetName:     instance.Spec.TargetRef.Name,
@@ -233,7 +191,7 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		URLPatterns:    urlPatterns,
 		CollectNTop:    instance.Spec.CollectNTop,
 		Enabled:        instance.Spec.Enabled,
-		lastUpdated:    time.Now(),
+		LastUpdated:    time.Now(),
 	}
 
 	// Update config manager
@@ -242,8 +200,8 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Update status
-	r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionConfigGenerated, metav1.ConditionTrue, "Generated", "Configuration generated successfully")
-	r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionReady, metav1.ConditionTrue, "Ready", "UrlPerformance is active")
+	r.updateCondition(ctx, instance, "ConfigGenerated", metav1.ConditionTrue, "Generated", "Configuration generated successfully")
+	r.updateCondition(ctx, instance, "Ready", metav1.ConditionTrue, "Ready", "UrlPerformance is active")
 	instance.Status.Phase = traefikofficerv1alpha1.PhaseActive
 	instance.Status.ObservedGeneration = instance.Generation
 
@@ -252,29 +210,29 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 // handleDisabled handles disabled UrlPerformance resources
 func (r *UrlPerformanceReconciler) handleDisabled(ctx context.Context, instance *traefikofficerv1alpha1.UrlPerformance) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	reqLogger := logr.FromContextOrDiscard(ctx)
 
 	// Remove configuration
 	configKey := fmt.Sprintf("%s-%s", instance.Spec.TargetRef.Namespace, instance.Spec.TargetRef.Name)
 	if r.ConfigManager != nil {
-		r.ConfigManager.UpdateConfig(&RuntimeConfig{
+		r.ConfigManager.UpdateConfig(&shared.RuntimeConfig{
 			Key:     configKey,
 			Enabled: false,
 		})
 	}
 
 	instance.Status.Phase = traefikofficerv1alpha1.PhaseDisabled
-	r.updateCondition(ctx, instance, traefikofficerv1alpha1.ConditionReady, metav1.ConditionFalse, "Disabled", "UrlPerformance is disabled")
+	r.updateCondition(ctx, instance, "Ready", metav1.ConditionFalse, "Disabled", "UrlPerformance is disabled")
 
-	log.Info("UrlPerformance is disabled", "name", instance.Name)
+	reqLogger.Info("UrlPerformance is disabled")
 	return r.updateStatus(ctx, instance)
 }
 
 // updateCondition updates a condition in the status
-func (r *UrlPerformanceReconciler) updateCondition(ctx context.Context, instance *traefikofficerv1alpha1.UrlPerformance, condType traefikofficerv1alpha1.ConditionType, status metav1.ConditionStatus, reason, message string) {
+func (r *UrlPerformanceReconciler) updateCondition(ctx context.Context, instance *traefikofficerv1alpha1.UrlPerformance, condType string, status metav1.ConditionStatus, reason, message string) {
 	now := metav1.Now()
 	newCondition := traefikofficerv1alpha1.Condition{
-		Type:               condType,
+		Type:               traefikofficerv1alpha1.ConditionType(condType),
 		Status:             string(status),
 		LastTransitionTime: &now,
 		Reason:             reason,
@@ -284,7 +242,7 @@ func (r *UrlPerformanceReconciler) updateCondition(ctx context.Context, instance
 	// Find existing condition
 	found := false
 	for i, cond := range instance.Status.Conditions {
-		if cond.Type == condType {
+		if string(cond.Type) == condType {
 			if cond.Status != string(status) {
 				instance.Status.Conditions[i] = newCondition
 			}
@@ -310,9 +268,5 @@ func (r *UrlPerformanceReconciler) updateStatus(ctx context.Context, instance *t
 func (r *UrlPerformanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&traefikofficerv1alpha1.UrlPerformance{}).
-		// Watch for changes to Ingress resources
-		// Watches(&source.Kind{Type: &networkingv1.Ingress{}}, handler.EnqueueRequestsFromMapFunc(r.findObjectsForIngress)).
-		// Watch for changes to IngressRoute resources
-		// Watches(&source.Kind{Type: &traefikv1alpha1.IngressRoute{}}, handler.EnqueueRequestsFromMapFunc(r.findObjectsForIngressRoute)).
 		Complete(r)
 }

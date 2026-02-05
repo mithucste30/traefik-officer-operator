@@ -36,33 +36,22 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
-          - --operator-mode
-          - --listen-port={{ .Values.metrics.port }}
-          - --health-port={{ .Values.metrics.healthPort }}
-          - --log-level={{ .Values.logLevel }}
+          - --enable-log-processor=true
+          - --metrics-bind-address=:{{ .Values.metrics.port }}
+          - --health-probe-bind-address=:{{ .Values.metrics.healthPort }}
+          {{- if .Values.operator.leaderElection.enabled }}
+          - --leader-elect
+          {{- end }}
           {{- if eq .Values.traefik.logSource "kubernetes" }}
-          - --use-k8s
-          - --namespace={{ .Values.traefik.kubernetes.namespace }}
-          - --pod-label-selector={{ .Values.traefik.kubernetes.podLabelSelector }}
-          - --container-name={{ .Values.traefik.kubernetes.containerName }}
-          {{- if .Values.traefik.kubernetes.kubeconfig }}
-          - --kubeconfig={{ .Values.traefik.kubernetes.kubeconfig }}
-          {{- end }}
-          {{- if .Values.traefik.kubernetes.context }}
-          - --kube-context={{ .Values.traefik.kubernetes.context }}
-          {{- end }}
-          {{- if .Values.traefik.kubernetes.inCluster }}
-          - --in-cluster
-          {{- end }}
+          - --use-k8s=true
+          - --k8s-namespace={{ .Values.traefik.kubernetes.namespace }}
+          - --k8s-label-selector={{ .Values.traefik.kubernetes.podLabelSelector }}
+          - --k8s-container={{ .Values.traefik.kubernetes.containerName }}
           {{- else if eq .Values.traefik.logSource "file" }}
           - --log-file={{ .Values.traefik.file.path }}
-          - --max-accesslog-size={{ .Values.traefik.file.maxSize }}
           {{- end }}
           {{- if eq .Values.logFormat.format "json" }}
-          - --json-logs
-          {{- end }}
-          {{- if .Values.logFormat.includeQueryArgs }}
-          - --include-query-args
+          - --json-logs=true
           {{- end }}
 
         ports:
