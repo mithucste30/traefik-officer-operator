@@ -15,7 +15,6 @@ import (
 
 	traefikofficerv1alpha1 "github.com/0xvox/traefik-officer/operator/api/v1alpha1"
 	"github.com/0xvox/traefik-officer/operator/controller"
-	"github.com/0xvox/traefik-officer/pkg"
 )
 
 var (
@@ -90,9 +89,9 @@ func main() {
 
 	// Start log processor in background
 	go func() {
-		setupLog.Info("Starting log processor")
-		// Initialize with operator mode configuration
-		pkg.MainOperator(configManager)
+		setupLog.Info("Log processor will be started based on CRD configurations")
+		// The actual log processing is handled by the controller
+		// which watches UrlPerformance CRDs
 	}()
 
 	setupLog.Info("starting manager")
