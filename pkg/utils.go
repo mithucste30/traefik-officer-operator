@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/go-ps"
+	ps "github.com/mitchellh/go-ps"
 	logger "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"

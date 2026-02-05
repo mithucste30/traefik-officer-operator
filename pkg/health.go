@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
@@ -17,60 +17,68 @@ type HealthStatus struct {
 
 // Global variables for health status
 var (
-	healthStatus      atomic.Value
+	healthStatus      HealthStatus
+	healthMutex       sync.RWMutex
 	startupTime       = time.Now()
-	lastProcessedTime atomic.Value
+	lastProcessedTime time.Time
 )
 
 // Initialize health status
 func init() {
-	healthStatus.Store(HealthStatus{
+	healthStatus = HealthStatus{
 		Status: "starting",
 		Components: map[string]string{
 			"service": "initializing",
 		},
-	})
-	lastProcessedTime.Store(time.Now())
+	}
+	lastProcessedTime = time.Now()
 }
 
 // SetServiceReady updates the service status to ready
 func SetServiceReady() {
-	current := healthStatus.Load().(HealthStatus)
-	if current.Components == nil {
-		current.Components = make(map[string]string)
+	healthMutex.Lock()
+	defer healthMutex.Unlock()
+
+	if healthStatus.Components == nil {
+		healthStatus.Components = make(map[string]string)
 	}
-	current.Status = "healthy"
-	current.Components["service"] = "running"
-	healthStatus.Store(current)
+	healthStatus.Status = "healthy"
+	healthStatus.Components["service"] = "running"
 }
 
 // UpdateHealthStatus updates the health status of a component
 func UpdateHealthStatus(component, status string, err error) {
-	current := healthStatus.Load().(HealthStatus)
-	if current.Components == nil {
-		current.Components = make(map[string]string)
+	healthMutex.Lock()
+	defer healthMutex.Unlock()
+
+	if healthStatus.Components == nil {
+		healthStatus.Components = make(map[string]string)
 	}
 
-	current.Components[component] = status
+	healthStatus.Components[component] = status
 	if err != nil {
-		current.Status = "error"
-		current.Error = err.Error()
-	} else if current.Status != "error" {
-		current.Status = "healthy"
+		healthStatus.Status = "error"
+		healthStatus.Error = err.Error()
+	} else if healthStatus.Status != "error" {
+		healthStatus.Status = "healthy"
 	}
-
-	healthStatus.Store(current)
 }
 
 // UpdateLastProcessedTime updates the timestamp of the last processed log line
 func UpdateLastProcessedTime() {
-	lastProcessedTime.Store(time.Now())
+	healthMutex.Lock()
+	defer healthMutex.Unlock()
+	lastProcessedTime = time.Now()
 }
 
 // HealthHandler handles health check requests
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	// Create a local copy of the status to avoid concurrent map writes
-	status := healthStatus.Load().(HealthStatus)
+	healthMutex.RLock()
+	status := healthStatus
+	lastProcessed := lastProcessedTime
+	healthMutex.RUnlock()
+
+	// Create a response copy to avoid concurrent map writes
 	response := HealthStatus{
 		Status:     status.Status,
 		Uptime:     time.Since(startupTime).Round(time.Second).String(),
@@ -84,7 +92,6 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if we're processing logs
-	lastProcessed := lastProcessedTime.Load().(time.Time)
 	if time.Since(lastProcessed) > 5*time.Minute {
 		response.Components["log_processing"] = "stale"
 		if response.Status == "healthy" {
