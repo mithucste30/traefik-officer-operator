@@ -1,0 +1,4 @@
+{{- $crdYaml := .Files.Get "crd/traefikofficer.io_urlperformances.yaml" }}
+{{- if $crdYaml }}
+{{- $crdYaml | nindent 0 }}
+{{- end }}

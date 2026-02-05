@@ -1,0 +1,17 @@
+apiVersion: v2
+name: traefik-officer-operator
+description: A Helm chart for Traefik Officer - Kubernetes operator for monitoring Traefik access logs with Prometheus metrics
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - traefik
+  - metrics
+  - monitoring
+  - prometheus
+  - operator
+home: https://github.com/0xvox/traefik-officer
+sources:
+  - https://github.com/0xvox/traefik-officer
+maintainers:
+  - name: Traefik Officer Team

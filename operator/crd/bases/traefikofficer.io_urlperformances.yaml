@@ -1,0 +1,186 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: urlperformances.traefikofficer.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+spec:
+  group: traefikofficer.io
+  names:
+    kind: UrlPerformance
+    plural: urlperformances
+    shortNames:
+      - urlperf
+    singular: urlperformance
+    categories:
+      - all
+      - traefikofficer
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          description: UrlPerformance defines the desired and observed state of a URL performance monitoring configuration for a specific Ingress or IngressRoute.
+          type: object
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object.'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents.'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: Spec defines the desired state of UrlPerformance.
+              type: object
+              required:
+                - targetRef
+              properties:
+                targetRef:
+                  description: TargetRef references the Ingress or IngressRoute to monitor.
+                  type: object
+                  required:
+                    - name
+                    - kind
+                  properties:
+                    kind:
+                      description: Kind of the target resource (Ingress or IngressRoute).
+                      type: string
+                      enum:
+                        - Ingress
+                        - IngressRoute
+                      default: Ingress
+                    name:
+                      description: Name of the target resource.
+                      type: string
+                    namespace:
+                      description: Namespace of the target resource. Defaults to the namespace of the UrlPerformance resource.
+                      type: string
+                whitelistPathsRegex:
+                  description: WhitelistPathsRegex is a comma-separated list of regex patterns. Only paths matching these patterns will be monitored for the target ingress. If empty, all paths are monitored (unless ignored).
+                  type: array
+                  items:
+                    type: string
+                  default: []
+                ignoredPathsRegex:
+                  description: IgnoredPathsRegex is a comma-separated list of regex patterns. Paths matching these patterns will always be ignored for the target ingress.
+                  type: array
+                  items:
+                    type: string
+                  default: []
+                mergePathsWithExtensions:
+                  description: MergePathsWithExtensions is a list of path prefixes. Paths under these prefixes will be merged (query parameters and path parameters replaced).
+                  type: array
+                  items:
+                    type: string
+                  default: []
+                urlPatterns:
+                  description: URLPatterns defines custom regex patterns for URL normalization.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - pattern
+                      - replacement
+                    properties:
+                      pattern:
+                        description: Regex pattern to match URLs.
+                        type: string
+                      replacement:
+                        description: Replacement string for matched URLs.
+                        type: string
+                collectNTop:
+                  description: CollectNTop specifies the number of top URL paths (by latency) to collect detailed metrics for. Defaults to 20.
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 20
+                enabled:
+                  description: Enabled controls whether monitoring is active for this resource. Defaults to true.
+                  type: boolean
+                  default: true
+            status:
+              description: Status defines the observed state of UrlPerformance.
+              type: object
+              properties:
+                phase:
+                  description: Phase indicates the current state of the UrlPerformance resource.
+                  type: string
+                  enum:
+                    - Pending
+                    - Active
+                    - Error
+                    - Disabled
+                  default: Pending
+                conditions:
+                  description: Conditions represents the latest available observations of the UrlPerformance state.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                    properties:
+                      type:
+                        description: Type of the condition.
+                        type: string
+                      status:
+                        description: Status of the condition (True, False, Unknown).
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time the condition transitioned.
+                        type: string
+                        format: date-time
+                      reason:
+                        description: Reason indicates the reason for the condition's last transition.
+                        type: string
+                      message:
+                        description: Message provides a human-readable explanation of the condition.
+                        type: string
+                monitoredPaths:
+                  description: MonitoredPaths is the count of unique paths currently being monitored for this resource.
+                  type: integer
+                lastScrapeTime:
+                  description: LastScrapeTime is the timestamp when metrics were last collected.
+                  type: string
+                  format: date-time
+                observedGeneration:
+                  description: ObservedGeneration is the most recent generation observed by the controller.
+                  type: integer
+                  format: int64
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Target Kind
+          type: string
+          description: The kind of target resource
+          jsonPath: .spec.targetRef.kind
+        - name: Target Name
+          type: string
+          description: The name of the target resource
+          jsonPath: .spec.targetRef.name
+        - name: Namespace
+          type: string
+          description: The namespace of the target resource
+          jsonPath: .spec.targetRef.namespace
+        - name: Enabled
+          type: boolean
+          description: Whether monitoring is enabled
+          jsonPath: .spec.enabled
+        - name: Phase
+          type: string
+          description: The current phase
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      # This is same as the kubectl cli version
+      conversion:
+        strategy: None

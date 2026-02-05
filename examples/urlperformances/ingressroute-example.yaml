@@ -1,0 +1,46 @@
+apiVersion: traefikofficer.io/v1alpha1
+kind: UrlPerformance
+metadata:
+  name: mahfil-api-monitoring
+  namespace: mahfil-dev
+  labels:
+    app: mahfil-api
+    environment: development
+spec:
+  # Reference to the IngressRoute to monitor
+  targetRef:
+    kind: IngressRoute  # Using IngressRoute CRD
+    name: mahfil-api-server-ingressroute-http
+    namespace: mahfil-dev
+
+  # Monitor all paths (no whitelist specified)
+
+  # Ignore static and health check paths
+  ignoredPathsRegex:
+    - "^/health"
+    - "^/metrics"
+    - "^/static/"
+    - "\\.jpg$"
+    - "\\.jpeg$"
+    - "\\.gif$"
+    - "\\.ico$"
+
+  # Merge API paths to reduce cardinality
+  mergePathsWithExtensions:
+    - "/api/"
+    - "/api/videos"
+    - "/api/users"
+
+  # Custom URL patterns for API endpoint normalization
+  urlPatterns:
+    - pattern: "/api/videos/[0-9]+"
+      replacement: "/api/videos/{id}"
+    - pattern: "/api/users/[0-9]+/profile"
+      replacement: "/api/users/{id}/profile"
+    - pattern: "/api/get-next-video\\?sessionId=[a-z0-9-]+"
+      replacement: "/api/get-next-video"
+
+  # Top 50 paths by latency
+  collectNTop: 50
+
+  enabled: true

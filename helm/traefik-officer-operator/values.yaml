@@ -1,0 +1,164 @@
+# Default values for traefik-officer-operator
+
+replicaCount: 1
+
+image:
+  repository: 0xvox/traefik-officer
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Operator configuration
+operator:
+  enabled: true
+  # Leader election for the controller manager
+  leaderElection:
+    enabled: true
+    leaseDuration: 15s
+    renewDeadline: 10s
+    retryPeriod: 2s
+
+# Traefik log source configuration
+traefik:
+  # Log source mode: "kubernetes" or "file"
+  logSource: kubernetes
+
+  # Kubernetes log source configuration
+  kubernetes:
+    namespace: ingress-controller
+    containerName: traefik
+    podLabelSelector: app.kubernetes.io/name=traefik
+    kubeconfig: ""
+    context: ""
+    inCluster: true
+
+  # File log source configuration (when logSource: file)
+  file:
+    path: /var/log/traefik/access.log
+    maxSize: 10  # MB
+
+# Log parsing configuration
+logFormat:
+  # Log format: "json" or "common"
+  format: json
+  includeQueryArgs: false
+
+# Metrics configuration
+metrics:
+  # Port for serving Prometheus metrics
+  port: 8084
+  # Port for health checks
+  healthPort: 8085
+  # ServiceMonitor configuration
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    labels: {}
+    annotations: {}
+    interval: 30s
+    scrapeTimeout: 10s
+    # Relabelings for Prometheus
+    relabelings: []
+    # Metric relabel configs
+    metricRelabelings: []
+
+# Service configuration
+service:
+  type: ClusterIP
+  metricsPort: 8084
+  healthPort: 8085
+  annotations: {}
+  labels: {}
+
+# RBAC configuration
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+    labels: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Autoscaling
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Liveness probe
+livenessProbe:
+  httpGet:
+    path: /health
+    port: health
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: health
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Volumes
+volumes: []
+# - name: traefik-logs
+#   persistentVolumeClaim:
+#     claimName: traefik-logs-pvc
+
+# Volume mounts
+volumeMounts: []
+# - name: traefik-logs
+#   mountPath: /var/log/traefik
+#   readOnly: true
+
+# Pod annotations
+annotations: {}
+
+# Pod labels
+labels: {}
+
+# Logging
+logLevel: info  # debug, info, warn, error

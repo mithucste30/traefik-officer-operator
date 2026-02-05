@@ -1,0 +1,86 @@
+{{- if .Values.rbac.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "traefik-officer-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "traefik-officer-operator.labels" . | nindent 4 }}
+  {{- with .Values.rbac.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.rbac.create }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "traefik-officer-operator.fullname" . }}
+  labels:
+    {{- include "traefik-officer-operator.labels" . | nindent 4 }}
+rules:
+  # CRD permissions
+  - apiGroups:
+      - traefikofficer.io
+    resources:
+      - urlperformances
+      - urlperformances/status
+      - urlperformances/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Ingress permissions
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+
+  # IngressRoute permissions
+  - apiGroups:
+      - traefik.io
+    resources:
+      - ingressroutes
+    verbs:
+      - get
+      - list
+      - watch
+
+  # Pod permissions for log streaming
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "traefik-officer-operator.fullname" . }}
+  labels:
+    {{- include "traefik-officer-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "traefik-officer-operator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "traefik-officer-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,22 @@
+apiVersion: traefikofficer.io/v1alpha1
+kind: UrlPerformance
+metadata:
+  name: disabled-ingress-monitoring
+  namespace: default
+spec:
+  targetRef:
+    kind: Ingress
+    name: some-ingress
+    namespace: default
+
+  # This configuration is disabled but will be ready when enabled
+  enabled: false
+
+  # Configuration will be applied when set to enabled: true
+  whitelistPathsRegex:
+    - "^/api/"
+
+  ignoredPathsRegex:
+    - "^/health"
+
+  collectNTop: 20

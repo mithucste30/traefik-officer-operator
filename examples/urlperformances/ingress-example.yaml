@@ -1,0 +1,44 @@
+apiVersion: traefikofficer.io/v1alpha1
+kind: UrlPerformance
+metadata:
+  name: grafana-monitoring
+  namespace: monitoring
+  labels:
+    app: grafana
+    environment: production
+spec:
+  # Reference to the Ingress or IngressRoute to monitor
+  targetRef:
+    kind: Ingress  # Can be Ingress or IngressRoute
+    name: grafana-operator-grafana-ingress
+    namespace: monitoring
+
+  # Only monitor paths matching these regex patterns (optional)
+  whitelistPathsRegex:
+    - "^/api/"
+    - "^/dashboard/"
+    - "^/graph/"
+
+  # Ignore these paths (optional)
+  ignoredPathsRegex:
+    - "^/static/"
+    - "^/assets/"
+    - "\\.css$"
+    - "\\.js$"
+    - "\\.png$"
+
+  # Merge paths under these prefixes to reduce cardinality
+  mergePathsWithExtensions:
+    - "/api/datasources"
+    - "/api/dashboards"
+
+  # Custom URL patterns for normalization (optional)
+  urlPatterns:
+    - pattern: "/api/datasources/uid/[a-z0-9-]+"
+      replacement: "/api/datasources/uid/{uid}"
+
+  # Number of top paths to collect detailed metrics for
+  collectNTop: 20
+
+  # Enable/disable monitoring
+  enabled: true
