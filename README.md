@@ -1,102 +1,258 @@
-# Traefik Officer
-A small Go library designed to enable endpoint level prometheus metrics from requests logged in Traefik's access logs.
+# Traefik Officer Operator 🚀
 
-**Please note the docker hub account has changed**
+[![CI](https://github.com/mithucste30/traefik-officer-operator/workflows/CI/badge.svg)](https://github.com/mithucste30/traefik-officer-operator/actions/workflows/ci.yml)
+[![Release](https://github.com/mithucste30/traefik-officer-operator/workflows/Release/badge.svg)](https://github.com/mithucste30/traefik-officer-operator/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mithucste30/traefik-officer-operator)](https://goreportcard.com/report/github.com/mithucste30/traefik-officer-operator)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[Docker Hub](https://hub.docker.com/repository/registry-1.docker.io/0xvox/traefik-officer/tags?page=1)
+> A Kubernetes operator for monitoring Traefik access logs with Prometheus metrics using CRD-based configuration
 
-```docker pull 0xvox/traefik-officer```
+Traefik Officer Operator extends the standalone Traefik Officer with cloud-native capabilities, allowing you to configure monitoring rules declaratively using Kubernetes Custom Resources.
 
-## Config
+## ✨ Features
 
-### Command Line Arguments:
+- 🔔 **Custom Resource Definition (CRD)** - `UrlPerformance` for declarative configuration
+- 🔄 **Dynamic Configuration** - Update monitoring rules without restarting pods
+- 🎯 **Per-Ingress Configuration** - Configure different rules for each Ingress/IngressRoute
+- 📊 **Enhanced Metrics** - All metrics include `namespace` and `ingress` labels
+- 🐳 **Multi-Architecture Support** - Docker images for AMD64 and ARM64
+- 📦 **Helm Chart** - Easy deployment with Helm 3
+- 🔍 **Prometheus Integration** - Auto ServiceMonitor creation
+- 🎛️ **Path Filtering** - Whitelist and blacklist paths using regex
+- 🔧 **URL Normalization** - Reduce metric cardinality with custom patterns
+- 📈 **Top N Path Tracking** - Track top paths by latency per ingress
+- 🌐 **Multi-Provider** - Works with Ingress and IngressRoute CRDs
 
-- `--log-file` - Point at your traefik access log.
-- `--json-logs` - Parse Traefik json formatted logs. Only certain fields are supported at the moment.
-- `--include-query-args` - Decide whether or not to split requests to a specific endpoint into separate metrics based on the arguments passed in the URL( `?arg=` and `&arg=` query strings). Not reccomended! Default false.
-- `--config-file` - Point towards a json config file to configure ignored patterns. Read on for more info.
-- `--listen-port` - Which port to serve metrics on. Suggest combining with [this metrics merger](https://github.com/rebuy-de/exporter-merger) to enable receiving metrics from both Traefik and Traefik officer.
-- `--max-accesslog-size` - Define the size, in megabytes, at which the traefik accessLog should be rotated. Default is 10, this is important to keep memory usage down.
-- `--strict-whitelist` - If this is enabled - ONLY request paths that match (a `string.Contains()`) the whitelist are enabled for metrics. If strict is false, the whitelist will be used to make exceptions for ignore rules. Default false.
-- `--pass-log-above-threshold` - Define the time, in ms, above which requests' traefik log lines will be passed through to stdout for further processing and investigation. Can be set to 0 to pass all access log lines.
-- `--debug` - Enables debug logging.
+## 🚀 Quick Start
 
-### Config File
-The config file is used to define things that should be ignored by the metrics publisher. An example of such a config file:
-```
-{
-    "IgnoredNamespaces": [
-        "/^-$/",
-        "test"
-    ],
-    "IgnoredRouters": [
-        "website",
-        "api@internal",
-        "prometheus@internal",
-        "http-to-443@internal"
-    ],
-    "IgnoredPathsRegex": [
-        "\/images\/"
-    ],
-    "MergePathsWithExtensions": [
-        "/api",
-        "/test"
-    ],
-    "WhitelistPaths":[
-        "/api/v2/"
-    ]
-}
+### Prerequisites
+
+- Kubernetes cluster (v1.19+)
+- Helm 3.x
+- Traefik v3.0+ running in Kubernetes
+
+### Install the Operator
+
+```bash
+# Add Helm repository
+helm repo add traefik-officer https://mithucste30.github.io/traefik-officer-operator
+helm repo update
+
+# Install the operator
+helm install traefik-officer-operator traefik-officer/traefik-officer-operator \
+  --namespace traefik-officer \
+  --create-namespace
 ```
 
-The ignore function will check in the order:
-- Namespaces
-- Routers
-- Path Regex
+### Create a UrlPerformance Resource
 
-All matching options compile down to Golang Regex before being checked for a match. It's important that you escape any special characters. You can test regex for golang [here](https://regex101.com/) with flavor set to Golang.
+```yaml
+apiVersion: traefikofficer.io/v1alpha1
+kind: UrlPerformance
+metadata:
+  name: grafana-monitoring
+  namespace: monitoring
+spec:
+  targetRef:
+    kind: Ingress
+    name: grafana-ingress
+    namespace: monitoring
 
-#### Ignored Namespaces
-There is a special value here; `-`. This is what the router name is set to for requests directly to the i.p. of the traefik instance with no host name / SNI. Note the strict regex here - since most routers contain a `-` somewhere in their name, due to the convention below.
+  # Only monitor API paths
+  whitelistPathsRegex:
+    - "^/api/"
 
-Some internal routers can be seen to be blocked in the above example.
+  # Ignore static assets
+  ignoredPathsRegex:
+    - "^/static/"
+    - "\\.css$"
+    - "\\.js$"
 
-Router names (When run using kubernetesCRD config) take the format:
-    `namespace-ingressroutename-hash@kubernetescrd`
+  # Merge API paths
+  mergePathsWithExtensions:
+    - "/api/"
 
+  # Track top 20 paths by latency
+  collectNTop: 20
 
-If a request came through to the router `prod-api-hash@kubernetescrd` - it would be reported on - so long as there were no instances of `/images/` in the request path.
-In this example, the router is an IngressRoute called `api` in the `prod` kubernetes namespace.
+  enabled: true
+```
 
-#### Ignored Routers
-If you wish to block certain routers in a namespace, but not all, it is necesary to match them here.
+```bash
+kubectl apply -f -f urlperformance.yaml
+```
 
-For example, we have `api` in the ignored routers, if this were in the prod namespace - requests through the `api` IngressRoute in the `prod` namespace would be blocked. 
+### View Metrics
 
-The matching code just runs a "Contains" check on these routers, so be specific if you have multiple IngressRoutes that contain the string `api`. 
+```bash
+# Port-forward to access metrics
+kubectl port-forward -n traefik-officer svc/traefik-officer-operator 8084:8084
 
-#### Ignored Path
-This is for more granular control over which endpoints in a service get reported on. In our example above we ignore any that match the regex pattern `/images/`. 
+# Fetch metrics
+curl http://localhost:8084/metrics
+```
 
-### MergePathsWithExtensions
-This can be used to remove query strings of the form:
-`www.example.com/api/endpoint/arg/arg/arg`
-By putting `/api/endpoint` in this list will stop getting metrics being collected for each combination of arguments in the URL, and instead simplify them down and add all counts to the `/api/endpoint` index.
+## 📊 Metrics
 
-#### WhiteListPaths
-This list serves two purposes, depending on whether strict whitelisting is enabled or disabled.
+All metrics now include `namespace` and `ingress` labels for better filtering:
 
-If `strict-whitelist` is `true`:
-- Only paths that match this whitelist (with a `.contains()`) will have metrics published.
-- All paths on the list, that have a duration greater that `pass-log-above-threshold` will have their accessLog printed to stdout of traefik-officer.
+```promql
+# Request rate per namespace
+sum(rate(traefik_officer_requests_total[5m])) by (namespace, ingress)
 
-If `strict-whitelist` is `false`:
-- Whitelist entries which also match an ignore rule will not be ignores.
-- All paths on the list, that have a duration greater that `pass-log-above-threshold` will have their accessLog printed to stdout of traefik-officer.
+# Error rate per ingress
+sum(rate(traefik_officer_endpoint_requests_total{response_code=~"5.."}[5m])) by (namespace, ingress)
 
+# P95 latency
+histogram_quantile(0.95,
+  sum(rate(traefik_officer_request_duration_seconds_bucket[5m])) by (namespace, ingress, le)
+)
+```
 
-### Examples
+## 📚 Documentation
 
-Check the example folder, there is:
-- An example kubernetes deployment YAML
-- An example Grafana dashboard
+- **[Operator Documentation](OPERATOR.md)** - Comprehensive operator guide
+- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - Technical details
+- **[Examples](./examples/)** - Example UrlPerformance resources
 
+## 🏗️ Architecture
+
+### Router Name Parsing
+
+The operator intelligently parses Traefik router names:
+
+**Standard Ingress:**
+```
+websecure-monitoring-grafana-operator-grafana-ingress-grafana-non-production-kahf-co@kubernetes
+↓
+Namespace: monitoring
+Ingress: grafana-operator-grafana-ingress
+```
+
+**IngressRoute CRD:**
+```
+mahfil-dev-mahfil-api-server-ingressroute-http-a457d08d5820f79b3e08@kubernetescrd
+↓
+Namespace: mahfil-dev
+IngressRoute: mahfil-api-server-ingressroute-http
+```
+
+## 🔧 Configuration
+
+### Helm Values
+
+```yaml
+traefik:
+  logSource: kubernetes  # or "file"
+  kubernetes:
+    namespace: ingress-controller
+    containerName: traefik
+    podLabelSelector: app.kubernetes.io/name=traefik
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+```
+
+See [helm/traefik-officer-operator/values.yaml](./helm/traefik-officer-operator/values.yaml) for all options.
+
+## 🛠️ Development
+
+### Build
+
+```bash
+# Build binaries
+make build
+
+# Build Docker images
+make docker
+
+# Run tests
+make test
+
+# Run linters
+make lint
+```
+
+### Run Locally
+
+```bash
+# Install CRDs
+make install-crds
+
+# Run operator locally
+make run-operator
+```
+
+## 📦 Installation
+
+### Docker Images
+
+```bash
+# Standalone mode
+docker pull ghcr.io/mithucste30/traefik-officer:latest
+
+# Operator mode
+docker pull ghcr.io/mithucste30/traefik-officer-operator:latest
+```
+
+### Helm Chart
+
+```bash
+# From OCI registry (future)
+helm install traefik-officer-operator oci://ghcr.io/mithucste30/traefik-officer-operator
+
+# From local chart
+helm install traefik-officer-operator ./helm/traefik-officer-operator
+```
+
+## 🔄 CI/CD
+
+This project uses GitHub Actions for CI/CD:
+
+- **CI Pipeline** - Runs on every push and PR
+  - Linting (golangci-lint)
+  - Testing (unit tests with coverage)
+  - Docker build tests
+  - Helm lint
+  - Security scanning (Trivy)
+
+- **Release Pipeline** - Triggered on version tags
+  - GoReleaser for binary releases
+  - Multi-arch Docker builds (AMD64/ARM64)
+  - Helm chart publishing
+  - GitHub release creation
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to open an issue or submit a pull request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Traefik](https://traefik.io/) - The cloud-native edge router
+- [Kubebuilder](https://book.kubebuilder.io/) - Kubernetes API building
+- [Controller Runtime](https://github.com/kubernetes-sigs/controller-runtime) - Kubernetes controller framework
+
+## 📧 Support
+
+- **Issues**: [GitHub Issues](https://github.com/mithucste30/traefik-officer-operator/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mithucste30/traefik-officer-operator/discussions)
+
+## 🌟 Star History
+
+If you find this project useful, please consider giving it a ⭐️ on [GitHub](https://github.com/mithucste30/traefik-officer-operator)!
+
+---
+
+**Note**: This project was originally based on the standalone [Traefik Officer](https://github.com/0xvox/traefik-officer) and has been extended with full Kubernetes operator capabilities.
