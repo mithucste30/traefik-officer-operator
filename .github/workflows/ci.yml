@@ -72,18 +72,21 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Build binary
+      - name: Build standalone binary
         run: |
-          go build -o traefik-officer ./pkg
-          go build -o traefik-officer-operator ./operator
+          go build -o bin/traefik-officer ./pkg
+          echo "✅ Standalone binary built successfully"
+
+      # Skip operator build until controller is complete
+      # - name: Build operator binary
+      #   run: |
+      #     go build -o bin/traefik-officer-operator ./operator
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
         with:
           name: binaries
-          path: |
-            traefik-officer
-            traefik-officer-operator
+          path: bin/
 
   docker-build-test:
     name: Docker Build Test

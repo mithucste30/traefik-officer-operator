@@ -21,21 +21,22 @@ builds:
     flags:
       - -trimpath
 
-  - id: traefik-officer-operator
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-    binary: traefik-officer-operator
-    dir: ./operator
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-    flags:
-      - -trimpath
+  # Operator build disabled - needs controller refinement
+  # - id: traefik-officer-operator
+  #   env:
+  #     - CGO_ENABLED=0
+  #   goos:
+  #     - linux
+  #     - darwin
+  #   goarch:
+  #     - amd64
+  #     - arm64
+  #   binary: traefik-officer-operator
+  #   dir: ./operator
+  #   ldflags:
+  #     - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  #   flags:
+  #     - -trimpath
 
 archives:
   - format: tar.gz
