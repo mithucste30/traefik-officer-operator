@@ -4,7 +4,8 @@ before:
     - go generate ./...
 
 builds:
-  - env:
+  - id: traefik-officer
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -20,7 +21,8 @@ builds:
     flags:
       - -trimpath
 
-  - env:
+  - id: traefik-officer-operator
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
