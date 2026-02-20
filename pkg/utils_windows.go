@@ -4,10 +4,6 @@ package logprocessing
 
 import (
 	"errors"
-	"fmt"
-	logger "github.com/sirupsen/logrus"
-	"os"
-	"syscall"
 )
 
 // logRotate is not supported on Windows
