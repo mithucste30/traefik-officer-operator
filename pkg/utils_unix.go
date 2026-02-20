@@ -35,11 +35,11 @@ func logRotate(accessLogLocation string) error {
 	}
 
 	// Delete and recreate the log file
-	if err := deleteFile(accessLogLocation); err != nil {
+	if err := deleteFileUnix(accessLogLocation); err != nil {
 		return fmt.Errorf("failed to delete log file: %w", err)
 	}
 
-	if err := createFile(accessLogLocation); err != nil {
+	if err := createFileUnix(accessLogLocation); err != nil {
 		return fmt.Errorf("failed to create new log file: %w", err)
 	}
 
@@ -68,7 +68,7 @@ func findTraefikProcess() (int, error) {
 	return -1, nil
 }
 
-func createFile(path string) error {
+func createFileUnix(path string) error {
 	if path == "" {
 		return errors.New("path cannot be empty")
 	}
@@ -101,7 +101,7 @@ func createFile(path string) error {
 	return nil
 }
 
-func deleteFile(path string) error {
+func deleteFileUnix(path string) error {
 	if path == "" {
 		return errors.New("path cannot be empty")
 	}
@@ -118,3 +118,4 @@ func deleteFile(path string) error {
 	logger.Debugf("Successfully deleted file: %s", path)
 	return nil
 }
+
