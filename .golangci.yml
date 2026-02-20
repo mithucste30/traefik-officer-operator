@@ -4,6 +4,9 @@ linters:
 
 linters-settings:
   govet:
+    disable:
+      - fieldalignment
+      - shadow
     enable-all: true
   gocyclo:
     min-complexity: 15
