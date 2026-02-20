@@ -114,12 +114,11 @@ jobs:
       - name: Build operator image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./operator
+          file: ./operator/Dockerfile
           platforms: linux/amd64
           push: false
           tags: traefik-officer-operator:test
-          target: operator
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
