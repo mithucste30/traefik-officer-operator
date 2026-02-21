@@ -123,72 +123,10 @@ jobs:
           provenance: true
           sbom: true
 
-  helm:
-    name: Publish Helm Chart
-    runs-on: ubuntu-latest
-    needs: docker
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: 'v3.16.1'
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install chart-releaser
-        run: |
-          pip install chart-releaser
-
-      - name: Package Helm chart
-        run: |
-          helm package helm/traefik-officer-operator
-
-      - name: Create gh-pages branch
-        run: |
-          git stash
-          git switch -c gh-pages
-          git rm -rf .
-          git checkout stash
-          mkdir -p charts
-
-      - name: Publish Helm chart to GitHub Pages
-        run: |
-          cr upload \
-            --owner ${{ github.repository_owner }} \
-            --git-repo traefik-officer-operator \
-            --token ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Index Helm chart
-        run: |
-          cr index \
-            --owner ${{ github.repository_owner }} \
-            --git-repo traefik-officer-operator \
-            --index-path index.yaml \
-            --charts-repo https://${{ github.repository_owner }}.github.io/traefik-officer-operator \
-            --token ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
-          publish_branch: gh-pages
-
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [docker, helm, release]
+    needs: [docker, release]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -200,11 +138,6 @@ jobs:
           echo "### Docker Images" >> release-notes.md
           echo "- \`ghcr.io/${{ github.repository }}/traefik-officer:${{ github.ref_name }}\`" >> release-notes.md
           echo "- \`ghcr.io/${{ github.repository }}/traefik-officer-operator:${{ github.ref_name }}\`" >> release-notes.md
-          echo "" >> release-notes.md
-          echo "### Helm Chart" >> release-notes.md
-          echo "\`\`\`bash" >> release-notes.md
-          echo "helm install traefik-officer-operator oci://ghcr.io/${{ github.repository_owner }}/traefik-officer-operator --version ${{ github.ref_name }}" >> release-notes.md
-          echo "\`\`\`" >> release-notes.md
           echo "" >> release-notes.md
           echo "### Quick Start" >> release-notes.md
           echo "See [OPERATOR.md](https://github.com/${{ github.repository }}/blob/master/OPERATOR.md) for documentation." >> release-notes.md
