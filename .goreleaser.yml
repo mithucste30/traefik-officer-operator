@@ -23,7 +23,6 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     flags:
       - -trimpath
-    mod: mod
 
   - id: traefik-officer-operator
     env:
@@ -42,7 +41,6 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     flags:
       - -trimpath
-    mod: mod
 
 archives:
   - name_template: >-
