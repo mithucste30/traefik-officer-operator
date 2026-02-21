@@ -2,6 +2,7 @@ version: 2
 
 before:
   hooks:
+    - rm -rf operator/vendor
     - go mod tidy
     - go mod verify
     - go generate ./...
