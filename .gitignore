@@ -6,3 +6,4 @@ accessLog.txt
 results.csv
 tmp/
 bin/
+operator/vendor/
