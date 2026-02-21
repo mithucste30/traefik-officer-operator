@@ -7,6 +7,7 @@ builds:
   - id: traefik-officer
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - linux
       - darwin
@@ -20,10 +21,12 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     flags:
       - -trimpath
+    mod: mod
 
   - id: traefik-officer-operator
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - linux
       - darwin
@@ -37,6 +40,7 @@ builds:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     flags:
       - -trimpath
+    mod: mod
 
 archives:
   - format: tar.gz
