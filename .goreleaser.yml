@@ -81,5 +81,64 @@ release:
   extra_files:
     - glob: traefik-officer-operator-*.tgz
 
+dockers:
+  # Standalone traefik-officer image
+  - image_templates:
+      - "ghcr.io/mithucste30/traefik-officer:{{ .Version }}"
+      - "ghcr.io/mithucste30/traefik-officer:latest"
+      - "mithucste30/traefik-officer:{{ .Version }}"
+      - "mithucste30/traefik-officer:latest"
+    dockerfile: Dockerfile.releaser
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Traefik log processor with Prometheus metrics"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.source={{ .GitURL }}"
+    goos: linux
+    goarch: amd64
+    goarm: ""
+    ids:
+      - traefik-officer
+    skip_push: false
+
+  # Operator image
+  - image_templates:
+      - "ghcr.io/mithucste30/traefik-officer-operator:{{ .Version }}"
+      - "ghcr.io/mithucste30/traefik-officer-operator:latest"
+      - "mithucste30/traefik-officer-operator:{{ .Version }}"
+      - "mithucste30/traefik-officer-operator:latest"
+    dockerfile: operator/Dockerfile.releaser
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}-operator"
+      - "--label=org.opencontainers.image.description=Kubernetes operator for Traefik Officer"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.source={{ .GitURL }}"
+    goos: linux
+    goarch: amd64
+    goarm: ""
+    ids:
+      - traefik-officer-operator
+    skip_push: false
+
+docker_signs:
+  - artifacts: all
+    cmd: cosign
+    args:
+      - sign
+      - "${artifact}"
+      - --yes
+      - --recursive
+    output: true
+
 milestones:
   - close: true

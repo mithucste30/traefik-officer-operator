@@ -1,0 +1,28 @@
+# Dockerfile.releaser - Optimized for GoReleaser builds
+# This Dockerfile is used by GoReleaser to create minimal Docker images
+# using pre-compiled binaries, avoiding in-Docker compilation.
+
+ARG BASE_IMAGE=alpine:3.19
+
+FROM ${BASE_IMAGE}
+
+RUN apk add --no-cache ca-certificates tzdata wget
+
+# Copy the pre-built binary from GoReleaser
+# This will be overridden by GoReleaser's build process
+COPY traefik-officer /usr/local/bin/traefik-officer
+
+# Verify the binary works
+RUN /usr/local/bin/traefik-officer --version || true
+
+RUN adduser -D appuser
+USER appuser
+
+WORKDIR /home/appuser
+
+EXPOSE 8080 8081
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/healthz || exit 1
+
+ENTRYPOINT ["/usr/local/bin/traefik-officer"]
