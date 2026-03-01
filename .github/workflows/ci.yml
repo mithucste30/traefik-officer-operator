@@ -12,7 +12,7 @@ concurrency:
 
 env:
   GO_VERSION: '1.25'
-  GOLANGCI_VERSION: 'v1.64'
+  GOLANGCI_VERSION: 'v1.65'
 
 jobs:
   lint:
