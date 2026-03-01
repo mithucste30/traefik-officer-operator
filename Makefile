@@ -39,11 +39,27 @@ build-standalone: ## Build standalone binary only
 build-operator: ## Build operator binary only
 	cd operator && $(GOBUILD) -ldflags "$(LDFLAGS)" -o ../bin/traefik-officer-operator .
 
-test: ## Run tests
-	$(GOTEST) -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+test: ## Run all tests
+	$(GOTEST) -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
-test-coverage: test ## Run tests with coverage report
-	$(GOCMD) tool cover -html=coverage.txt -o coverage.html
+test-unit: ## Run unit tests only (no integration tests)
+	$(GOTEST) -v -race ./pkg/... ./shared/...
+
+test-integration: ## Run integration tests with envtest
+	@echo "Running integration tests with envtest..."
+	@if [ -z "$$KUBEBUILDER_ASSETS" ]; then \
+		echo "Setting KUBEBUILDER_ASSETS..."; \
+		export KUBEBUILDER_ASSETS=$$(setup-envtest use 1.30.0 -p path); \
+	fi; \
+	$(GOTEST) -v -race ./operator/controller/...
+
+test-coverage: test ## Generate coverage report
+	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+	@$(GOCMD) tool cover -func=coverage.out | tail -1
+
+test-coverage-func: ## Show coverage by function
+	@$(GOCMD) tool cover -func=coverage.out
 
 lint: ## Run linters
 	@echo "Running go vet..."
@@ -110,7 +126,7 @@ chart-lint: ## Lint Helm chart
 ## Clean
 clean: ## Clean build artifacts
 	rm -rf bin/
-	rm -f coverage.txt coverage.html
+	rm -f coverage.out coverage.html
 	docker system prune -f
 
 ## Development helpers

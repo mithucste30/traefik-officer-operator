@@ -375,6 +375,77 @@ func extractServiceName(routerName string) string {
 	return routerName
 }
 
+// MapRouterNameToKubernetesService maps a Traefik router name to a Kubernetes service name
+// by matching against the list of service names from the Ingress
+func MapRouterNameToKubernetesService(routerName string, serviceNames []string) string {
+	if len(serviceNames) == 0 {
+		// Fallback to extractServiceName if no service names provided
+		return extractServiceName(routerName)
+	}
+
+	// Remove the @kubernetes or @kubernetescrd suffix
+	cleanRouterName := routerName
+	if idx := strings.Index(routerName, "@"); idx != -1 {
+		cleanRouterName = routerName[:idx]
+	}
+
+	// Split the router name by dashes
+	parts := strings.Split(cleanRouterName, "-")
+
+	// Try to find the best match among service names
+	// Traefik router names follow pattern: namespace-service-name-type-protocol-hash
+	// We need to find which Kubernetes service name matches
+
+	for _, serviceName := range serviceNames {
+		// Direct match
+		if strings.Contains(cleanRouterName, serviceName) {
+			return serviceName
+		}
+
+		// Try matching with dashes
+		// e.g., "my-api-service" should match "my-api"
+		serviceParts := strings.Split(serviceName, "-")
+		if len(serviceParts) >= 2 {
+			// Build prefix from service parts
+			prefix := strings.Join(serviceParts, "-")
+			if strings.HasPrefix(cleanRouterName, prefix) {
+				return serviceName
+			}
+		}
+
+		// Try matching individual service parts in router name
+		matchedParts := 0
+		for _, servicePart := range serviceParts {
+			for _, routerPart := range parts {
+				if servicePart == routerPart {
+					matchedParts++
+					break
+				}
+			}
+		}
+		// If most parts match, consider it a match
+		if matchedParts >= len(serviceParts) {
+			return serviceName
+		}
+	}
+
+	// If no match found, try to extract service name from router
+	extracted := extractServiceName(cleanRouterName)
+
+	// Verify extracted name is in the list
+	for _, serviceName := range serviceNames {
+		if strings.Contains(serviceName, extracted) || strings.Contains(extracted, serviceName) {
+			return serviceName
+		}
+	}
+
+	// Last resort: return the first service name or extracted name
+	if len(serviceNames) > 0 {
+		return serviceNames[0]
+	}
+	return extracted
+}
+
 // normalizeURL applies URL patterns to normalize endpoints
 func normalizeURL(serviceName, path string, urlPatterns []URLPattern) string {
 	// First, try service-specific patterns

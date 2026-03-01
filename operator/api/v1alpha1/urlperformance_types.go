@@ -38,19 +38,16 @@ type UrlPerformanceSpec struct {
 	// Only paths matching these patterns will be monitored for the target ingress.
 	// If empty, all paths are monitored (unless ignored).
 	// +optional
-	// +kubebuilder:default=[]
 	WhitelistPathsRegex []string `json:"whitelistPathsRegex,omitempty"`
 
 	// IgnoredPathsRegex is a list of regex patterns.
 	// Paths matching these patterns will always be ignored for the target ingress.
 	// +optional
-	// +kubebuilder:default=[]
 	IgnoredPathsRegex []string `json:"ignoredPathsRegex,omitempty"`
 
 	// MergePathsWithExtensions is a list of path prefixes.
 	// Paths under these prefixes will be merged (query parameters and path parameters replaced).
 	// +optional
-	// +kubebuilder:default=[]
 	MergePathsWithExtensions []string `json:"mergePathsWithExtensions,omitempty"`
 
 	// URLPatterns defines custom regex patterns for URL normalization.
@@ -67,8 +64,6 @@ type UrlPerformanceSpec struct {
 
 	// Enabled controls whether monitoring is active for this resource.
 	// +optional
-	// +kubebuilder:default=true
-	// +default=true
 	Enabled bool `json:"enabled,omitempty"`
 }
 

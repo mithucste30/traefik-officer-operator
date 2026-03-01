@@ -1,0 +1,212 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.1
+  name: urlperformances.traefikofficer.io
+spec:
+  group: traefikofficer.io
+  names:
+    kind: UrlPerformance
+    listKind: UrlPerformanceList
+    plural: urlperformances
+    shortNames:
+    - urlperf
+    singular: urlperformance
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: The kind of target resource
+      jsonPath: .spec.targetRef.kind
+      name: Target Kind
+      type: string
+    - description: The name of the target resource
+      jsonPath: .spec.targetRef.name
+      name: Target Name
+      type: string
+    - description: The namespace of the target resource
+      jsonPath: .spec.targetRef.namespace
+      name: Namespace
+      type: string
+    - description: Whether monitoring is enabled
+      jsonPath: .spec.enabled
+      name: Enabled
+      type: boolean
+    - description: The current phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    - description: The age of the resource
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: UrlPerformance is the Schema for the urlperformances API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: UrlPerformanceSpec defines the desired state of UrlPerformance
+            properties:
+              collectNTop:
+                default: 20
+                description: CollectNTop specifies the number of top URL paths (by
+                  latency) to collect detailed metrics for.
+                maximum: 1000
+                minimum: 1
+                type: integer
+              enabled:
+                default: true
+                description: Enabled controls whether monitoring is active for this
+                  resource.
+                type: boolean
+              ignoredPathsRegex:
+                description: |-
+                  IgnoredPathsRegex is a list of regex patterns.
+                  Paths matching these patterns will always be ignored for the target ingress.
+                items:
+                  type: string
+                type: array
+              mergePathsWithExtensions:
+                description: |-
+                  MergePathsWithExtensions is a list of path prefixes.
+                  Paths under these prefixes will be merged (query parameters and path parameters replaced).
+                items:
+                  type: string
+                type: array
+              targetRef:
+                description: TargetRef references the Ingress or IngressRoute to monitor
+                properties:
+                  kind:
+                    default: Ingress
+                    description: Kind of the target resource (Ingress or IngressRoute)
+                    enum:
+                    - Ingress
+                    - IngressRoute
+                    type: string
+                  name:
+                    description: Name of the target resource
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the target resource.
+                      Defaults to the namespace of the UrlPerformance resource.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              urlPatterns:
+                description: URLPatterns defines custom regex patterns for URL normalization.
+                items:
+                  description: URLPattern defines a custom regex pattern for URL normalization
+                  properties:
+                    pattern:
+                      description: Regex pattern to match URLs
+                      type: string
+                    replacement:
+                      description: Replacement string for matched URLs
+                      type: string
+                  required:
+                  - pattern
+                  - replacement
+                  type: object
+                type: array
+              whitelistPathsRegex:
+                description: |-
+                  WhitelistPathsRegex is a list of regex patterns.
+                  Only paths matching these patterns will be monitored for the target ingress.
+                  If empty, all paths are monitored (unless ignored).
+                items:
+                  type: string
+                type: array
+            required:
+            - targetRef
+            type: object
+          status:
+            description: UrlPerformanceStatus defines the observed state of UrlPerformance
+            properties:
+              conditions:
+                description: Conditions represents the latest available observations
+                  of the UrlPerformance state
+                items:
+                  description: Condition defines an observation of a UrlPerformance's
+                    state
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transitioned
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message provides a human-readable explanation of
+                        the condition
+                      type: string
+                    reason:
+                      description: Reason indicates the reason for the condition's
+                        last transition
+                      type: string
+                    status:
+                      description: Status of the condition (True, False, Unknown)
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: Type of the condition
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastScrapeTime:
+                description: LastScrapeTime is the timestamp when metrics were last
+                  collected
+                format: date-time
+                type: string
+              monitoredPaths:
+                description: MonitoredPaths is the count of unique paths currently
+                  being monitored for this resource
+                format: int32
+                type: integer
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller
+                format: int64
+                type: integer
+              phase:
+                default: Pending
+                description: Phase indicates the current state of the UrlPerformance
+                  resource
+                enum:
+                - Pending
+                - Active
+                - Error
+                - Disabled
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

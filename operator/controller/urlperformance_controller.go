@@ -118,6 +118,8 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	targetExists := false
 	var targetErr error
 
+	var serviceNames []string
+
 	switch instance.Spec.TargetRef.Kind {
 	case "Ingress":
 		ingress := &networkingv1.Ingress{}
@@ -126,6 +128,11 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			Name:      instance.Spec.TargetRef.Name,
 		}, ingress)
 		targetExists = (targetErr == nil)
+
+		// Extract service names if ingress exists
+		if targetExists {
+			serviceNames = extractServiceNamesFromIngress(ingress)
+		}
 	}
 
 	if !targetExists {
@@ -185,6 +192,7 @@ func (r *UrlPerformanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		Namespace:      targetNamespace,
 		TargetName:     instance.Spec.TargetRef.Name,
 		TargetKind:     instance.Spec.TargetRef.Kind,
+		ServiceNames:   serviceNames,
 		WhitelistRegex: whitelistRegex,
 		IgnoredRegex:   ignoredRegex,
 		MergePaths:     instance.Spec.MergePathsWithExtensions,
@@ -262,6 +270,33 @@ func (r *UrlPerformanceReconciler) updateStatus(ctx context.Context, instance *t
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
+}
+
+// extractServiceNamesFromIngress extracts unique service names from an Ingress
+func extractServiceNamesFromIngress(ingress *networkingv1.Ingress) []string {
+	serviceSet := make(map[string]struct{})
+
+	// Iterate through all rules and their HTTP paths
+	for _, rule := range ingress.Spec.Rules {
+		if rule.HTTP == nil {
+			continue
+		}
+
+		for _, path := range rule.HTTP.Paths {
+			if path.Backend.Service != nil {
+				serviceName := path.Backend.Service.Name
+				serviceSet[serviceName] = struct{}{}
+			}
+		}
+	}
+
+	// Convert set to slice
+	serviceNames := make([]string, 0, len(serviceSet))
+	for serviceName := range serviceSet {
+		serviceNames = append(serviceNames, serviceName)
+	}
+
+	return serviceNames
 }
 
 // SetupWithManager sets up the controller with the Manager

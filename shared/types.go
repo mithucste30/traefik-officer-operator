@@ -18,6 +18,7 @@ type RuntimeConfig struct {
 	Namespace      string
 	TargetName     string
 	TargetKind     string
+	ServiceNames   []string  // List of Kubernetes service names referenced in the Ingress/IngressRoute
 	WhitelistRegex []*regexp.Regexp
 	IgnoredRegex   []*regexp.Regexp
 	MergePaths     []string

@@ -162,3 +162,9 @@ labels: {}
 
 # Logging
 logLevel: info  # debug, info, warn, error
+
+# Grafana Dashboard configuration
+grafanaDashboard:
+  enabled: true
+  namespace: monitoring  # Namespace where Grafana is deployed
+  datasource: Prometheus  # Prometheus datasource name in Grafana

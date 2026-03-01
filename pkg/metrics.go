@@ -46,7 +46,7 @@ var (
 			Name: "traefik_officer_requests_total",
 			Help: "Total number of HTTP requests",
 		},
-		[]string{"request_method", "response_code", "app", "namespace", "target_kind"},
+		[]string{"request_method", "response_code", "service"},
 	)
 
 	requestDuration = promauto.NewHistogramVec(
@@ -55,7 +55,7 @@ var (
 			Help:    "Duration of HTTP requests in seconds",
 			Buckets: prometheus.DefBuckets,
 		},
-		[]string{"request_method", "response_code", "app", "namespace", "target_kind"},
+		[]string{"request_method", "response_code", "service"},
 	)
 
 	// New endpoint-specific metrics
