@@ -96,7 +96,7 @@ data:
               "expr": "topk($top_n, sort_by(avg(traefik_officer_endpoint_avg_latency_seconds{namespace=\"$namespace\", ingress=\"$ingress\"}) by (request_path), -avg_value))",
               "format": "time_series",
               "interval": "",
-              "legendFormat": "{{ request_path }}",
+              "legendFormat": "{{ "{{ request_path }}" }}",
               "refId": "A"
             }
           ],
@@ -226,7 +226,7 @@ data:
               "expr": "topk($top_n, max(traefik_officer_endpoint_max_latency_seconds{namespace=\"$namespace\", ingress=\"$ingress\"}) by (request_path))",
               "format": "time_series",
               "interval": "",
-              "legendFormat": "{{ request_path }}",
+              "legendFormat": "{{ "{{ request_path }}" }}",
               "refId": "A"
             }
           ],
@@ -300,7 +300,7 @@ data:
               "expr": "topk($top_n, sum(rate(traefik_officer_endpoint_requests_total{namespace=\"$namespace\", ingress=\"$ingress\"}[5m])) by (request_path))",
               "format": "time_series",
               "interval": "",
-              "legendFormat": "{{ request_path }}",
+              "legendFormat": "{{ "{{ request_path }}" }}",
               "refId": "A"
             }
           ],

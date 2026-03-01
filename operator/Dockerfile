@@ -2,7 +2,7 @@
 # Builds the operator binary with embedded log processing
 # This Dockerfile should be built from the repository root
 
-FROM golang:1.24.1-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
