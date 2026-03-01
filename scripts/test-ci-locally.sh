@@ -92,7 +92,7 @@ fi
 
 # Test 7: Build operator binary
 print_info "Building operator binary..."
-if go build -o bin/traefik-officer-operator ./cmd/operator; then
+if cd operator && go build -o ../bin/traefik-officer-operator . && cd ..; then
     print_success "Operator binary built successfully"
     rm -f bin/traefik-officer-operator
 else
