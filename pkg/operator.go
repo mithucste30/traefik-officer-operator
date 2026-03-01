@@ -96,9 +96,10 @@ func parseRouterName(routerName string) (namespace, targetName, targetKind strin
 		provider := routerName[idx+1:]
 		routerName = routerName[:idx]
 
-		if provider == "kubernetes" {
+		switch provider {
+		case "kubernetes":
 			targetKind = "Ingress"
-		} else if provider == "kubernetescrd" {
+		case "kubernetescrd":
 			targetKind = "IngressRoute"
 		}
 	}
