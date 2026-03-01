@@ -1,23 +1,6 @@
-version: 2
+version: "2"
 
 linters:
   disable:
     - unused
     - errcheck
-
-linters-settings:
-  govet:
-    disable:
-      - fieldalignment
-      - shadow
-    enable-all: true
-  gocyclo:
-    min-complexity: 15
-  goconst:
-    min-len: 2
-    min-occurrences: 3
-
-issues:
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
