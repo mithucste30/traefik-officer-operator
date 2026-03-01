@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,7 +112,7 @@ func NewKubernetesClientset(config K8SConfig) (*kubernetes.Clientset, error) {
 func NewKubernetesLogSource(k8sConfig *K8SConfig) (*KubernetesLogSource, error) {
 	clientSet, err := NewKubernetesClientset(*k8sConfig)
 	if err != nil {
-		log.Fatalf("Error creating Kubernetes client: %v", err)
+		return nil, fmt.Errorf("error creating Kubernetes client: %w", err)
 	}
 
 	return &KubernetesLogSource{
